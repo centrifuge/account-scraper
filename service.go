@@ -94,28 +94,27 @@ func encodeAndSave(accountSet map[types.AccountID]bool) error {
 	return nil
 }
 
-func sanityCheck() error {
+func loadAccounts() (map[types.AccountID]bool, error) {
 	dataRead, err := ioutil.ReadFile("build/accounts.scale")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	var readAccounts []types.AccountID
-	err = types.DecodeFromBytes(dataRead, &readAccounts)
+	var listAccounts []types.AccountID
+	err = types.DecodeFromBytes(dataRead, &listAccounts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-
-	fmt.Println("Accounts Identified:")
-	for x := 0; x < len(readAccounts); x++ {
-		fmt.Printf("%x\n", readAccounts[x])
+	var mapAccounts = make(map[types.AccountID]bool)
+	for _, elem := range listAccounts {
+		mapAccounts[elem] = true
 	}
 
-	return nil
+	return mapAccounts, nil
 }
 
-func Process(targetURL string) error {
+func Process(targetURL string, append bool) error {
 	//targetURL = "wss://fullnode-archive.centrifuge.io"
 	api, err := gsrpc.NewSubstrateAPI(targetURL)
 	if err != nil {
@@ -143,7 +142,18 @@ func Process(targetURL string) error {
 
 	fmt.Println("Processing blocks until", latestNumber)
 
-	accountSet := genesisAccounts()
+	var accountSet = make(map[types.AccountID]bool)
+	if append {
+		fmt.Println("Appending to existing Accounts File")
+		accountSet, err = loadAccounts()
+		if err != nil {
+			return err
+		}
+	}
+
+	addTestAccounts(accountSet)
+	addGenesisAccounts(accountSet)
+
 	for i := uint64(0); i < latestNumber; i+=step {
 		lower := i
 		upper := i + step
@@ -162,16 +172,22 @@ func Process(targetURL string) error {
 		return errors.Wrap(err, "Error Encoding/Saving")
 	}
 
-	err = sanityCheck()
+	// Sanity Check
+	readAccounts, err := loadAccounts()
 	if err != nil {
 		return errors.Wrap(err, "Error Sanity Check")
+	}
+
+	fmt.Println("Accounts Identified:")
+	for key, _ := range readAccounts {
+		fmt.Printf("%x\n", key)
 	}
 
 	return nil
 }
 
-func genesisAccounts() map[types.AccountID]bool {
-	accs := []string{
+func addGenesisAccounts(accountSet map[types.AccountID]bool) {
+	mainAccs := []string{
 		"0x123bdd258d11c2afb5cc2aaf116abc113db2b99b90bff6864cbc12fb0d9e7a7c",
 		"0xba2c4540acac96a93e611ec4258ce05338434f12107d35f29783bbd2477dd20e",
 		"0xaa35391992c3ae5effb7b347db468ce3015e0fd61db940af96adab4f420d775f",
@@ -226,11 +242,77 @@ func genesisAccounts() map[types.AccountID]bool {
 		"0x3ab513f457cf3f77c5235a1b34f29cb96ab2454d6d0d2b94e22a743a8e7f8731",
 	}
 
-	var accountSet = make(map[types.AccountID]bool)
-	for _, elem := range accs {
+	amberAccs := []string{
+		"0xb61f93a69fc0f7fb0f0e390def11a05b365f52cc2d76c8aaf6c6d1ccf8868d51",
+		"0xc4461198656800fbaf42331ddf9394dd4d6233f843481c82cd44ff134640253b",
+		"0x1af412c1fd789de98532e890828b42b71941a23dd3ae659a4657f0c287a2c620",
+		"0x9a6474cf589a2fff75ac6fabcf0756bb86581e0e777e4da7b1c34d1c25003b6d",
+		"0xc697db2284c9d2938b59ab34d4a39fc98b7e75a4a53aaf64df9f923b2da79943",
+		"0x90d93f5cfdad8eb8bdf699a49f52aaf6ff45e2097f035201f7e2fb62f8ff1a59",
+		"0x60e25d10ef42645a5b9e41b82b5354053c15c5a9066b2f0857819505c73a1c18",
+		"0x58473270bfe850d36c8a9b17851cdaab6eaef34e8a19f203032a841b17e6225a",
+		"0x281a3a7c24a57383c8ab210cf68c77809c59c40bf561e1d273551fd04b0bf003",
+		"0x6c5d6e0a1616138d429ec82343c64e19ca91fdc4fc83c6230291c6629ee31e5c",
+		"0x48415841c8876bb0ae0d0c5c19f4113d20759ce5417f5755ff858aef1c8d5847",
+		"0x806583290bf6a8f96a69e092939555cedcdde7aacd8224bee32cf16316fa005f",
+		"0x58eff1cf80796776dca1ffc26983c905ec35bc298f5f2e694fce682564c07f51",
+		"0xbec5c3a4d94bf1fdf93daad479c4733ef4775232e4bbe48d7907fbe7f2b77d46",
+		"0x42bbdad494b897fafd9bc235c8f8aa81a95f6681188eba6d4ac89669f118563a",
+		"0x308f4b699d3ba6583b26a34165fe3759d082a91d09e66254796101fdfc17a370",
+		"0x5afd1ff6fd10fff5124c4c36bc96355c89d9bef7f11ac8fbe336e9eed5056237",
+		"0x6c831f845da5d2cba3d47844ae1a39f9d466a16e39cd4e24a29797113f4a1349",
+		"0xba4b3e752a0737ce22af2b44a8a2e893ccb491644715de57ade77b6d270fea5f",
+		"0x22698426dae9285b03f77eb2f8bb079980cd7efe107adf0d894a250219a5e40d",
+		"0x4cc2abff7349d0ec56e8c00cc4d3250dc0319b89d2940292c24dad35528b5031",
+		"0xcc720f4fca68808d1a6c7ddbbac58dfdcfca9a12b2ad221235aebebb5d91b468",
+		"0x86e902161931aea76200686f51fc2a4135a53e419eb70d864e5e45858569c458",
+		"0x2090ba294eda76dbf1fe53a1292373198bbe140d165c7a3718a3cf483ced6203",
+		"0x5ae1ab6d1fffe69e07bae35aa873beb9f1a4352134629535ddcb0a9bc5313974",
+		"0xfe74f018297259cbdebbf58a5e755f4d74b95b4d45244f736493a7a195e6c14c",
+		"0xce291beba4e958c935b3dff2c04df16c773ae1949d5204328365b7e4aa2f5049",
+		"0x00b2a45da53f66199472a3e3e096fc1174aca8ad06c42648268b4c16bea61b69",
+		"0xa665dd831865ab9e210fff87379566c589e50dcd88a5b90cb327aedc3307ec02",
+		"0x6c0b99e13f2a644186c64cae0a04497d61b8d6cca2146f7f175d3953ee72c769",
+		"0x4cc2d92249624cd61bcbcfeb8fbb5a8de7699feedb1b3cf4c161f9e14faeeb37",
+		"0x4bf08e42ca674b08ff58c8ae3b4c08142d07be86cfb689f0c2ab98ab8a6f475c",
+	}
+
+	flintAccs := []string{
+		"0xc4051f94a879bd014647993acb2d52c4059a872b6e202e70c3121212416c5842",
+		"0xe85164fc14c1275c398301fbfb9663916f4b0847331aa8ab2097c79358cb2a3d",
+		"0x6c8f1e49c090d4998b23cc68d52453563785df4e84f3a10024b77d8b4649d51c",
+		"0xa665dd831865ab9e210fff87379566c589e50dcd88a5b90cb327aedc3307ec02",
+		"0x6c0b99e13f2a644186c64cae0a04497d61b8d6cca2146f7f175d3953ee72c769",
+		"0x4cc2d92249624cd61bcbcfeb8fbb5a8de7699feedb1b3cf4c161f9e14faeeb37",
+		"0x4bf08e42ca674b08ff58c8ae3b4c08142d07be86cfb689f0c2ab98ab8a6f475c",
+	}
+
+	for _, elem := range mainAccs {
+		accountSet[types.NewAccountID(hexutil.MustDecode(elem))] = true
+	}
+	for _, elem := range amberAccs {
+		accountSet[types.NewAccountID(hexutil.MustDecode(elem))] = true
+	}
+	for _, elem := range flintAccs {
 		accountSet[types.NewAccountID(hexutil.MustDecode(elem))] = true
 	}
 
-	return accountSet
+	return
+}
+
+func addTestAccounts(accountSet map[types.AccountID]bool) {
+	accs := []string{
+		"0xc2cda5af8590d296eff5d7bb3ddf8235ca0f220743861808d611f4d5e5c120f8",
+		"0x20caaa19510a791d1f3799dac19f170938aeb0e58c3d1ebf07010532e599d728",
+		"0x9efc9f132428d21268710181fe4315e1a02d838e0e5239fe45599f54310a7c34",
+		"0xc405224448dcd4259816b09cfedbd8df0e6796b16286ea18efa2d6343da5992e",
+		"0xa23153e26c377a172c803e35711257c638e6944ad0c0627db9e3fc63d8503639",
+		"0x8f9f7766fb5f36aeeed7a05b5676c14ae7c13043e3079b8a850131784b6d15d8",
+		"0x42a6fcd852ef2fe2205de2a3d555e076353b711800c6b59aef67c7c7c1acf04d",
+		"0xbe1ce959980b786c35e521eebece9d4fe55c41385637d117aa492211eeca7c3d",
+	}
+	for _, elem := range accs {
+		accountSet[types.NewAccountID(hexutil.MustDecode(elem))] = true
+	}
 }
 

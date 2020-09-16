@@ -19,9 +19,13 @@ func main() {
 				Value: "",
 				Usage: "URL of full archive node",
 			},
+			&cli.BoolFlag{
+				Name: "append",
+				Usage: "Appends to existing scale encoded file removing duplicates",
+			},
 		},
 		Action: func(c *cli.Context) error {
-			return as.Process(c.String("url"))
+			return as.Process(c.String("url"), c.Bool("append"))
 		},
 	}
 
